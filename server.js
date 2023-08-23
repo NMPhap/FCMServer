@@ -61,16 +61,17 @@ async function main() {
       }
     );
     if (response.status == 200) {
-      res.send("Success add to queue");
+      res.status(200).send("Success add to queue");
+      newArtifact.update({name: response.data.name})
       const userRef = await db.collection("user").doc(req.body.userId).get();
       const registrationToken = userRef.data().deviceId;
       console.log(registrationToken);
       const message = {
         notification: {
-          title: "Video " + " has been sent to inference.",
+          title: "Video "+ req.file.originalname + " has been sent to inference.",
           body:
-            "Video " +
-            " has been sent to inference. The image will be stored with name ",
+            "Video " + req.file.originalname +
+            " has been sent to inference with name: " + response.body.name +   ". The image will be stored with name ",
         },
         android: {
           notification: {
