@@ -65,13 +65,13 @@ async function main() {
       newArtifact.update({name: response.data.name})
       const userRef = await db.collection("user").doc(req.body.userId).get();
       const registrationToken = userRef.data().deviceId;
-      console.log(registrationToken);
+      console.log(response);
       const message = {
         notification: {
           title: "Video "+ req.file.originalname + " has been sent to inference.",
           body:
             "Video " + req.file.originalname +
-            " has been sent to inference with name: " + response.body.name +   ". The image will be stored with name ",
+            " has been sent to inference with name: " + response.data.name +   ". We'll inform you when the inference is complete",
         },
         android: {
           notification: {
@@ -132,8 +132,6 @@ async function main() {
       tokens: registrationToken,
     };
 
-    // Send a message to the device corresponding to the provided
-    // registration token.
     admin
       .messaging()
       .sendMulticast(message)
