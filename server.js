@@ -50,7 +50,7 @@ async function main() {
       });
     const formFile = new FormData();
     formFile.append("video", req.file.buffer, req.file.originalname);
-    formFile.append("id", newArtifact.id)
+    formFile.append("id", newArtifact.id);
     const response = await axios.post(
       "https://rtmdet-s-server-e4b8cd044511.herokuapp.com/upload_video",
       formFile,
@@ -62,16 +62,20 @@ async function main() {
     );
     if (response.status == 200) {
       res.status(200).send("Success add to queue");
-      newArtifact.update({name: response.data.name})
+      newArtifact.update({ name: response.data.name });
       const userRef = await db.collection("user").doc(req.body.userId).get();
       const registrationToken = userRef.data().deviceId;
       console.log(response);
       const message = {
         notification: {
-          title: "Video "+ req.file.originalname + " has been sent to inference.",
+          title:
+            "Video " + req.file.originalname + " has been sent to inference.",
           body:
-            "Video " + req.file.originalname +
-            " has been sent to inference with name: " + response.data.name +   ". We'll inform you when the inference is complete",
+            "Video " +
+            req.file.originalname +
+            " has been sent to inference with name: " +
+            response.data.name +
+            ". We'll inform you when the inference is complete",
         },
         android: {
           notification: {
@@ -98,50 +102,70 @@ async function main() {
       res.status(500).send("Something wrong happened. We trying to figure out");
     }
   });
-  app.post("/artifacts", async (req, res) => {
-    await db
-      .collection("artifacts")
-      .doc(req.body.id)
-      .update({ path: req.body.link });
-    const artifacts = await db.collection("artifacts").doc(req.body.id).get();
-    const userRef = await db.collection("user");
-    const queryRef = await userRef
-      .where("artifacts", "array-contains", "artifacts/" + req.body.id)
-      .get();
-    res.status(200).send("Done saving artifact " + artifacts.data().name);
-    var registrationToken = [];
-    queryRef.forEach((element) => {
-      console.log(element.data().deviceId)
-      registrationToken.push(element.data().deviceId);
-    });
-    console.log(registrationToken)
-    const message = {
-      notification: {
-        title: "Video " + artifacts.name + " has done inference.",
-        body:
-          "Video " +
-          artifacts.name +
-          " has done inference. Click here to see the video",
-      },
-      android: {
-        notification: {
-          icon: "stock_ticker_update",
-          color: "#7e55c3",
-        },
-      },
-      tokens: registrationToken,
-    };
+  app.get("/artifacts/:id", async (req, res) => {
+    const usersRef = db.collection("artifacts").doc(req.params.id);
 
-    admin
-      .messaging()
-      .sendMulticast(message)
-      .then((response) => {
-        // Response is a message ID string.
-        console.log("Successfully sent message:", response);
-      })
-      .catch((error) => {
-        console.log("Error sending message:", error);
-      });
+    usersRef.get().then((docSnapshot) => {
+      if (docSnapshot.exists) {
+        res
+          .status(200)
+          .json({ id: req.params.id, path: docSnapshot.data().path });
+      } else {
+        res.status(404).json({ message: "Artifact not found" }); // create the document
+      }
+    });
+  });
+  app.patch("/artifacts/:id", async (req, res) => {
+    var artifactRef = await db.collection("artifacts").doc(req.params.id);
+    artifactRef.get().then(async (snapshot) => {
+      if (snapshot.exists) {
+        artifactRef.update({ path: req.body.path });
+        const artifacts = await db
+          .collection("artifacts")
+          .doc(req.params.id)
+          .get();
+        const userRef = await db.collection("user");
+        const queryRef = await userRef
+          .where("artifacts", "array-contains", "artifacts/" + req.params.id)
+          .get();
+        res.status(200).send("Done saving artifact " + artifacts.data().name);
+        var registrationToken = [];
+        queryRef.forEach((element) => {
+          console.log(element.data().deviceId);
+          registrationToken.push(element.data().deviceId);
+        });
+        console.log(registrationToken);
+        const message = {
+          notification: {
+            title: "Video " + artifacts.name + " has done inference.",
+            body:
+              "Video " +
+              artifacts.name +
+              " has done inference. Click here to see the video",
+          },
+          android: {
+            notification: {
+              icon: "stock_ticker_update",
+              color: "#7e55c3",
+            },
+          },
+          tokens: registrationToken,
+        };
+
+        admin
+          .messaging()
+          .sendMulticast(message)
+          .then((response) => {
+            // Response is a message ID string.
+            console.log("Successfully sent message:", response);
+          })
+          .catch((error) => {
+            console.log("Error sending message:", error);
+          });
+      } else {
+        res.status(404).json({ message: "Artifact not found" });
+      }
+    });
   });
 }
 
