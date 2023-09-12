@@ -52,7 +52,7 @@ async function main() {
     formFile.append("video", req.file.buffer, req.file.originalname);
     formFile.append("id", newArtifact.id);
     const response = await axios.post(
-      "https://rtmdet-s-server-e4b8cd044511.herokuapp.com/upload_video",
+      "https://rtmdet2-1aeb36d1254d.herokuapp.com/upload_video",
       formFile,
       {
         headers: {
