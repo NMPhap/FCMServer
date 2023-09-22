@@ -3,7 +3,11 @@ var FormData = require("form-data");
 const axios = require("axios");
 const fs = require("fs");
 
-const { getFirestore, FieldValue } = require("firebase-admin/firestore");
+const {
+  getFirestore,
+  FieldValue,
+  Firestore,
+} = require("firebase-admin/firestore");
 const multer = require("multer");
 var serviceAccount = require("./secret/traffictracking-a103e-firebase-adminsdk-c3gli-47524e825f.json");
 const bodyParser = require("body-parser");
@@ -40,6 +44,8 @@ async function main() {
     await newArtifact.set({
       name: req.file.originalname,
       path: "",
+      status: "pending",
+      thumbnailURL: "",
     });
 
     await db
@@ -51,6 +57,7 @@ async function main() {
     const formFile = new FormData();
     formFile.append("video", req.file.buffer, req.file.originalname);
     formFile.append("id", newArtifact.id);
+    //Forward the file in inference server
     const response = await axios.post(
       "https://rtmdet2-1aeb36d1254d.herokuapp.com/upload_video",
       formFile,
@@ -104,12 +111,16 @@ async function main() {
   });
   app.get("/artifacts/:id", async (req, res) => {
     const usersRef = db.collection("artifacts").doc(req.params.id);
-
     usersRef.get().then((docSnapshot) => {
       if (docSnapshot.exists) {
-        res
-          .status(200)
-          .json({ id: req.params.id, path: docSnapshot.data().path });
+        const data = docSnapshot.data();
+        res.status(200).json({
+          id: req.params.id,
+          name: data.name,
+          path: data.path,
+          status: data.status,
+          thumbnailURL: data.thumbnailURL,
+        });
       } else {
         res.status(404).json({ message: "Artifact not found" }); // create the document
       }
@@ -117,9 +128,16 @@ async function main() {
   });
   app.patch("/artifacts/:id", async (req, res) => {
     var artifactRef = await db.collection("artifacts").doc(req.params.id);
+
     artifactRef.get().then(async (snapshot) => {
       if (snapshot.exists) {
-        artifactRef.update({ path: req.body.path });
+        const data = snapshot.data()
+        artifactRef.update({
+          //Check undefined field in body
+          path: req.body.path ?? data.path,
+          status: req.body.status ?? data.status,
+          thumbnailURL: req.body.status ?? data.thumbnailURL,
+        });
         const artifacts = await db
           .collection("artifacts")
           .doc(req.params.id)
@@ -129,12 +147,20 @@ async function main() {
           .where("artifacts", "array-contains", "artifacts/" + req.params.id)
           .get();
         res.status(200).send("Done saving artifact " + artifacts.data().name);
+        if (
+          //Only if the artifact's status is updated to success then send message
+          (req.body.status ?? "" != "success") &&
+          //If an artifacts's status is success. There is no need to send message again
+          artifacts.data().status != req.body.status
+        )
+          return;
         var registrationToken = [];
         queryRef.forEach((element) => {
           console.log(element.data().deviceId);
           registrationToken.push(element.data().deviceId);
         });
-        console.log(registrationToken);
+        // No user attached to the artifacts => No message
+        if (registrationToken.length == 0) return;
         const message = {
           notification: {
             title: "Video " + artifacts.name + " has done inference.",
