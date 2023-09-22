@@ -136,7 +136,7 @@ async function main() {
           //Check undefined field in body
           path: req.body.path ?? data.path,
           status: req.body.status ?? data.status,
-          thumbnailURL: req.body.status ?? data.thumbnailURL,
+          thumbnailURL: req.body.thumbnailURL ?? data.thumbnailURL,
         });
         const artifacts = await db
           .collection("artifacts")
