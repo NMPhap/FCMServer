@@ -55,11 +55,10 @@ async function main() {
         artifacts: FieldValue.arrayUnion("artifacts/" + newArtifact.id),
       });
     const formFile = new FormData();
-    formFile.append("video", req.file.buffer, req.file.originalname);
-    formFile.append("id", newArtifact.id);
+    formFile.append("filed", req.file.buffer, req.file.originalname);
     //Forward the file in inference server
     const response = await axios.post(
-      "https://rtmdet2-1aeb36d1254d.herokuapp.com/upload_video",
+      "https://rtmdet2-1aeb36d1254d.herokuapp.com/video/" + newArtifact.id,
       formFile,
       {
         headers: {
