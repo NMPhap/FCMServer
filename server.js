@@ -130,7 +130,7 @@ async function main() {
 
     artifactRef.get().then(async (snapshot) => {
       if (snapshot.exists) {
-        const data = snapshot.data()
+        const data = snapshot.data();
         artifactRef.update({
           //Check undefined field in body
           path: req.body.path ?? data.path,
@@ -193,5 +193,11 @@ async function main() {
     });
   });
 }
-
+app.delete("/user/:id", async (req, res) => {
+  db.collection("user")
+    .doc(req.params.id)
+    .delete()
+    .then((value) => res.status(200).json({ message: "Done delete user" }))
+    .catch((err) => res.status(500).json({ message: "Error deleting user" }));
+});
 main();
